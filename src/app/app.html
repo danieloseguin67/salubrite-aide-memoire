@@ -1,0 +1,292 @@
+<a class="skip-link" href="#reference">{{ text('skip') }}</a>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Navigation">
+    <a class="brand" href="./" aria-label="Salubri">
+      <span class="brand-mark" aria-hidden="true">s<span>·</span></span>
+      <span
+        >salubri<span class="brand-dot">.</span><small>{{ text('brandSubtitle') }}</small></span
+      >
+    </a>
+    <div class="sidebar-caption">{{ text('yourGuide') }}</div>
+    <nav class="category-nav" [attr.aria-label]="text('categories')">
+      @for (category of categories; track category.id) {
+        <button
+          type="button"
+          [class.active]="selectedCategory() === category.id && !favoritesOnly()"
+          [attr.aria-pressed]="selectedCategory() === category.id && !favoritesOnly()"
+          (click)="selectCategory(category.id)"
+        >
+          <span class="nav-symbol" aria-hidden="true">{{ category.symbol }}</span>
+          <span>{{ category.label[language()] }}</span>
+          <span class="nav-count">{{ categoryCount(category.id) }}</span>
+        </button>
+      }
+      <button
+        class="favorites-nav"
+        type="button"
+        [class.active]="favoritesOnly()"
+        [attr.aria-pressed]="favoritesOnly()"
+        (click)="showFavorites()"
+      >
+        <span class="nav-symbol" aria-hidden="true">☆</span><span>{{ text('favorites') }}</span>
+        <span class="nav-count">{{ favorites().length }}</span>
+      </button>
+    </nav>
+    <div class="sidebar-source">
+      <span class="source-icon" aria-hidden="true">↗</span>
+      <strong>{{ text('sourceTitle') }}</strong>
+      <p>{{ text('sourceDescription') }}</p>
+      <a href="source.pdf" target="_blank" rel="noopener"
+        >{{ text('openGuide') }} <span aria-hidden="true">↗</span></a
+      >
+    </div>
+    <div class="sidebar-footer">{{ text('madeFor') }}</div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <span class="breadcrumb"
+        >{{ text('workspace') }} <span aria-hidden="true">/</span>
+        <strong>{{ text('quickReference') }}</strong></span
+      >
+      <div class="topbar-actions">
+        <div class="language-switch" role="group" [attr.aria-label]="text('language')">
+          <button
+            type="button"
+            lang="fr"
+            [attr.aria-pressed]="language() === 'fr'"
+            [class.selected]="language() === 'fr'"
+            (click)="setLanguage('fr')"
+          >
+            FR
+          </button>
+          <button
+            type="button"
+            lang="en"
+            [attr.aria-pressed]="language() === 'en'"
+            [class.selected]="language() === 'en'"
+            (click)="setLanguage('en')"
+          >
+            EN
+          </button>
+        </div>
+        <button class="print-button" type="button" (click)="print()">
+          <span aria-hidden="true">↗</span> {{ text('print') }}
+        </button>
+      </div>
+    </header>
+
+    <main id="reference">
+      <section class="intro" aria-labelledby="page-title">
+        <div class="eyebrow">
+          <span class="status-dot" aria-hidden="true"></span> {{ text('eyebrow') }}
+        </div>
+        <h1 id="page-title">{{ text('heading') }}<span class="heading-accent">.</span></h1>
+        <p class="intro-description">{{ text('description') }}</p>
+        <div class="search-box">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m16 16 4.5 4.5" />
+          </svg>
+          <label class="sr-only" for="guide-search">{{ text('searchLabel') }}</label>
+          <input
+            id="guide-search"
+            type="search"
+            [placeholder]="text('searchPlaceholder')"
+            [value]="query()"
+            (input)="updateSearch($event)"
+            autocomplete="off"
+          />
+          @if (query()) {
+            <button
+              type="button"
+              class="clear-search"
+              [attr.aria-label]="text('clearSearch')"
+              (click)="query.set('')"
+            >
+              ×
+            </button>
+          }
+        </div>
+        <div class="popular-searches">
+          <span>{{ text('quickSearch') }}</span>
+          @for (term of quickSearches(); track $index) {
+            <button type="button" (click)="searchFor(term)">
+              {{ term }} <span aria-hidden="true">↗</span>
+            </button>
+          }
+        </div>
+      </section>
+
+      @if (storageError()) {
+        <div class="storage-error" role="alert">
+          {{ text('storageError') }}
+          <button type="button" (click)="storageError.set(false)">{{ text('dismiss') }}</button>
+        </div>
+      }
+
+      <section class="essentials" [attr.aria-label]="text('essentialTemps')">
+        <div class="essential-heading">
+          <span class="small-icon" aria-hidden="true">°</span>
+          <div>
+            <strong>{{ text('essentialTemps') }}</strong
+            ><span>{{ text('alwaysKeep') }}</span>
+          </div>
+        </div>
+        <div class="temp-item cold">
+          <strong>≤ 4 <small>°C</small></strong
+          ><span>{{ text('refrigerated') }}</span>
+        </div>
+        <div class="temp-item frozen">
+          <strong>≤ −18 <small>°C</small></strong
+          ><span>{{ text('frozen') }}</span>
+        </div>
+        <div class="temp-item hot">
+          <strong>≥ 60 <small>°C</small></strong
+          ><span>{{ text('hotHolding') }}</span>
+        </div>
+        <div class="temp-item danger">
+          <strong>4–60 <small>°C</small></strong
+          ><span>{{ text('dangerZone') }}</span>
+        </div>
+        <a
+          href="source.pdf#page=12"
+          target="_blank"
+          rel="noopener"
+          class="temp-source"
+          [attr.aria-label]="text('tempSource')"
+          >p. 12 ↗</a
+        >
+      </section>
+
+      <section class="cards-section" aria-labelledby="cards-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="cards-title">{{ sectionTitle() }}</h2>
+            <p role="status">{{ visibleCards().length }} {{ text('cardsCount') }}</p>
+          </div>
+          @if (query() || favoritesOnly() || selectedCategory() !== 'all') {
+            <button class="reset-button" type="button" (click)="resetFilters()">
+              {{ text('resetFilters') }} <span aria-hidden="true">↺</span>
+            </button>
+          } @else {
+            <span class="section-note">{{ text('cardHint') }}</span>
+          }
+        </div>
+        <div class="card-grid">
+          @for (card of visibleCards(); track card.id) {
+            <article class="reference-card" [class.expanded]="isExpanded(card.id)">
+              <div class="card-topline">
+                <span class="category-badge" [attr.data-category]="card.category">{{
+                  categoryLabel(card.category)
+                }}</span>
+                <button
+                  class="favorite-button"
+                  type="button"
+                  [class.saved]="isFavorite(card.id)"
+                  [attr.aria-pressed]="isFavorite(card.id)"
+                  [attr.aria-label]="
+                    (isFavorite(card.id) ? text('removeFavorite') : text('addFavorite')) +
+                    ' : ' +
+                    card.title[language()]
+                  "
+                  (click)="toggleFavorite(card.id)"
+                >
+                  {{ isFavorite(card.id) ? '★' : '☆' }}
+                </button>
+              </div>
+              <h3>{{ card.title[language()] }}</h3>
+              <p class="card-summary">{{ card.summary[language()] }}</p>
+              <div class="card-bottom">
+                <span class="page-reference"
+                  >{{ text('guidePages') }} {{ card.pages.join(', ') }}</span
+                >
+                <button
+                  class="expand-button"
+                  type="button"
+                  [attr.aria-expanded]="isExpanded(card.id)"
+                  [attr.aria-controls]="'details-' + card.id"
+                  (click)="toggleExpanded(card.id)"
+                >
+                  {{ isExpanded(card.id) ? text('less') : text('steps') }}
+                  <span aria-hidden="true">{{ isExpanded(card.id) ? '−' : '+' }}</span>
+                </button>
+              </div>
+              <div class="card-details" [id]="'details-' + card.id" [hidden]="!isExpanded(card.id)">
+                <ol>
+                  @for (step of card.steps; track $index) {
+                    <li>{{ step[language()] }}</li>
+                  }
+                </ol>
+                @if (card.id === 'cooking') {
+                  <table>
+                    <caption>
+                      {{
+                        text('cookingCaption')
+                      }}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{{ text('food') }}</th>
+                        <th scope="col">{{ text('target') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (row of cookingRows; track $index) {
+                        <tr>
+                          <th scope="row">{{ row.food[language()] }}</th>
+                          <td>{{ row.target[language()] }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                }
+                @if (card.warning) {
+                  <p class="warning">
+                    <strong>{{ text('attention') }}</strong> {{ card.warning[language()] }}
+                  </p>
+                }
+                <div class="detail-sources">
+                  <span>{{ text('verifySource') }}</span>
+                  @for (page of card.pages; track page) {
+                    <a [href]="'source.pdf#page=' + page" target="_blank" rel="noopener"
+                      >p. {{ page }} ↗</a
+                    >
+                  }
+                </div>
+              </div>
+            </article>
+          } @empty {
+            <div class="empty-state">
+              <span aria-hidden="true">{{ favoritesOnly() ? '☆' : '⌕' }}</span>
+              <h3>
+                {{
+                  favoritesOnly() && !favorites().length ? text('noFavorites') : text('noResults')
+                }}
+              </h3>
+              <p>
+                {{
+                  favoritesOnly() && !favorites().length ? text('favoriteHint') : text('searchHint')
+                }}
+              </p>
+              <button type="button" class="primary-button" (click)="resetFilters()">
+                {{ text('showAll') }}
+              </button>
+            </div>
+          }
+        </div>
+      </section>
+
+      <footer class="main-footer">
+        <div class="footer-mark" aria-hidden="true">i</div>
+        <div>
+          <strong>{{ text('referenceNotProcedure') }}</strong>
+          <p>{{ text('disclaimer') }}</p>
+        </div>
+        <a href="source.pdf#page=35" target="_blank" rel="noopener"
+          >{{ text('sourceEdition') }} ↗</a
+        >
+      </footer>
+    </main>
+  </div>
+</div>
