@@ -116,6 +116,18 @@
             </button>
           }
         </div>
+        @if (query().trim()) {
+          <div class="search-feedback" role="status">
+            <span>{{ visibleCards().length }} {{ text('searchResultsCount') }}</span>
+            <a href="#cards-title">{{ text('jumpToResults') }} ↓</a>
+          </div>
+        }
+        <div class="full-guide-search">
+          <a href="source.pdf" target="_blank" rel="noopener noreferrer">
+            {{ text('fullGuideSearch') }}
+          </a>
+          <span>{{ text('fullGuideSearchHint') }}</span>
+        </div>
       </section>
 
       @if (storageError()) {
@@ -216,9 +228,18 @@
               <h3>{{ card.title[language()] }}</h3>
               <p class="card-summary">{{ card.summary[language()] }}</p>
               <div class="card-bottom">
-                <span class="page-reference"
-                  >{{ text('guidePages') }} {{ card.pages.join(', ') }}</span
-                >
+                <div class="page-reference">
+                  <span>{{ text('guidePages') }}</span>
+                  @for (page of card.pages; track page) {
+                    <a
+                      [href]="'source.pdf#page=' + page"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      [attr.aria-label]="text('sourcePage') + ' ' + page"
+                      >{{ page }}</a
+                    >
+                  }
+                </div>
                 <button
                   class="expand-button"
                   type="button"
@@ -291,6 +312,255 @@
                 {{ text('showAll') }}
               </button>
             </div>
+          }
+        </div>
+      </section>
+
+      <section class="assistant-section" aria-labelledby="assistant-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="assistant-title">{{ text('askSectionTitle') }}</h2>
+            <p>{{ text('askSectionDescription') }}</p>
+          </div>
+        </div>
+        <ol class="workflow-steps">
+          <li>
+            <strong>{{ text('workflowStepOneTitle') }}</strong>
+            <span>{{ text('workflowStepOne') }}</span>
+          </li>
+          <li>
+            <strong>{{ text('workflowStepTwoTitle') }}</strong>
+            <span>{{ text('workflowStepTwo') }}</span>
+          </li>
+          <li>
+            <strong>{{ text('workflowStepThreeTitle') }}</strong>
+            <span>{{ text('workflowStepThree') }}</span>
+          </li>
+        </ol>
+        <div class="assistant-panel">
+          <label for="user-question">{{ text('questionLabel') }}</label>
+          <textarea
+            id="user-question"
+            rows="3"
+            [placeholder]="text('questionPlaceholder')"
+            [value]="question()"
+            (input)="updateQuestion($event)"
+          ></textarea>
+          <button
+            class="primary-button"
+            type="button"
+            [disabled]="!question().trim()"
+            (click)="createPrompt()"
+          >
+            {{ text('createPrompt') }}
+          </button>
+
+          @if (generatedPrompt()) {
+            <div class="prompt-output">
+              <label for="generated-prompt">{{ text('promptLabel') }}</label>
+              <textarea
+                id="generated-prompt"
+                rows="6"
+                readonly
+                [value]="generatedPrompt()"
+              ></textarea>
+              <div class="assistant-actions">
+                <button class="secondary-button" type="button" (click)="copyPrompt()">
+                  {{ text('copyPrompt') }}
+                </button>
+                <a
+                  class="primary-button chatgpt-link"
+                  href="https://chatgpt.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ text('openChatGpt') }} <span aria-hidden="true">↗</span>
+                </a>
+              </div>
+              @if (copyStatus() !== 'idle') {
+                <p class="copy-status" role="status" [class.copy-error]="copyStatus() === 'error'">
+                  {{ copyStatus() === 'copied' ? text('copiedPrompt') : text('copyFailed') }}
+                </p>
+              }
+              <label for="chatgpt-answer">{{ text('answerLabel') }}</label>
+              <textarea
+                id="chatgpt-answer"
+                rows="5"
+                [placeholder]="text('answerPlaceholder')"
+                [value]="answer()"
+                (input)="updateAnswer($event)"
+                (paste)="handleAnswerPaste($event)"
+              ></textarea>
+              <div class="image-tools">
+                <label class="secondary-button image-upload" for="answer-image">
+                  {{ text('addAnswerImage') }}
+                </label>
+                <input
+                  class="sr-only"
+                  id="answer-image"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  (change)="handleImageSelection($event)"
+                />
+                <span class="image-help">{{ text('imageHelp') }}</span>
+              </div>
+              <p class="image-link-note">{{ text('imageLinkNote') }}</p>
+              @if (answerImages().length) {
+                <div class="answer-image-previews">
+                  @for (image of answerImages(); track $index) {
+                    <div class="answer-image-preview">
+                      <img [src]="image.dataUrl" [alt]="image.name" />
+                      <span>{{ image.name }}</span>
+                      <button
+                        class="secondary-button"
+                        type="button"
+                        (click)="removeAnswerImage($index)"
+                      >
+                        {{ text('imageRemoved') }}
+                      </button>
+                    </div>
+                  }
+                </div>
+              }
+              @if (imageStatus() !== 'idle') {
+                <p class="copy-status" role="status" [class.copy-error]="imageStatus() === 'error'">
+                  {{
+                    imageStatus() === 'added'
+                      ? text('imageAttached')
+                      : imageStatus() === 'limit'
+                        ? text('imageLimit')
+                        : text('imageError')
+                  }}
+                </p>
+              }
+              <button
+                class="primary-button"
+                type="button"
+                [disabled]="!answer().trim()"
+                (click)="saveKnowledgeEntry()"
+              >
+                {{ text('saveAnswer') }}
+              </button>
+            </div>
+          }
+        </div>
+
+        <div class="knowledge-section" aria-labelledby="knowledge-title">
+          <div class="section-heading">
+            <div>
+              <h2 id="knowledge-title">{{ text('knowledgeBaseTitle') }}</h2>
+              <p role="status">{{ knowledgeBase().length }} {{ text('knowledgeCount') }}</p>
+              <p class="share-knowledge-note">{{ text('shareKnowledgeNote') }}</p>
+            </div>
+          </div>
+          @if (knowledgeBase().length) {
+            <div class="knowledge-table-wrap">
+              <table class="knowledge-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{{ text('questionColumn') }}</th>
+                    <th scope="col">{{ text('answerColumn') }}</th>
+                    <th scope="col">{{ text('actionColumn') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (entry of knowledgeBase(); track entry.id) {
+                    <tr>
+                      <th scope="row">{{ entry.question }}</th>
+                      <td>
+                        {{ entry.answer.slice(0, 110) }}{{ entry.answer.length > 110 ? '…' : '' }}
+                        @if (getKnowledgeImages(entry).length) {
+                          <span class="image-count"
+                            >{{ getKnowledgeImages(entry).length }} ·
+                            {{ text('answerImageAlt') }}</span
+                          >
+                        }
+                      </td>
+                      <td>
+                        <div class="knowledge-actions">
+                          <button
+                            class="table-action"
+                            type="button"
+                            [attr.aria-expanded]="expandedKnowledgeEntry() === entry.id"
+                            [attr.aria-controls]="'knowledge-details-' + entry.id"
+                            (click)="toggleKnowledgeDetails(entry.id)"
+                          >
+                            {{
+                              expandedKnowledgeEntry() === entry.id
+                                ? text('hideKnowledge')
+                                : text('viewKnowledge')
+                            }}
+                          </button>
+                          <button
+                            class="table-action delete-action"
+                            type="button"
+                            [attr.aria-label]="text('removeKnowledgeEntry')"
+                            [title]="text('removeKnowledgeEntry')"
+                            (click)="removeKnowledgeEntry(entry.id)"
+                          >
+                            {{ text('removeKnowledgeAction') }}
+                          </button>
+                          <a
+                            class="table-action share-action"
+                            [href]="whatsappShareUrl(entry)"
+                            [attr.aria-label]="text('shareWhatsappLabel')"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {{ text('shareWhatsapp') }}
+                          </a>
+                          <a
+                            class="table-action share-action"
+                            [href]="emailShareUrl(entry)"
+                            [attr.aria-label]="text('shareEmailLabel')"
+                          >
+                            {{ text('shareEmail') }}
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                    @if (expandedKnowledgeEntry() === entry.id) {
+                      <tr [id]="'knowledge-details-' + entry.id" class="knowledge-detail-row">
+                        <td colspan="3">
+                          <div class="knowledge-detail">
+                            <p class="knowledge-answer">
+                              @for (part of knowledgeAnswerParts(entry); track $index) {
+                                @if (part.image) {
+                                  <img
+                                    [src]="part.image.dataUrl"
+                                    [alt]="part.image.name"
+                                    loading="lazy"
+                                  />
+                                } @else {
+                                  {{ part.text }}
+                                }
+                              }
+                            </p>
+                            @if (getUnplacedKnowledgeImages(entry).length) {
+                              <div class="knowledge-images">
+                                @for (image of getUnplacedKnowledgeImages(entry); track $index) {
+                                  <figure>
+                                    <img
+                                      [src]="image.dataUrl"
+                                      [alt]="text('answerImageAlt')"
+                                      loading="lazy"
+                                    />
+                                    <figcaption>{{ image.name }}</figcaption>
+                                  </figure>
+                                }
+                              </div>
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="knowledge-empty">{{ text('knowledgeEmpty') }}</p>
           }
         </div>
       </section>

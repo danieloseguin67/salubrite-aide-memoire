@@ -542,7 +542,56 @@ export function normalizeSearch(value: string): string {
     .replace(/œ/g, 'oe');
 }
 
-export function matchesSearch(card: GuideCard, query: string): boolean {
+const searchStopWords = new Set([
+  'a',
+  'au',
+  'aux',
+  'avec',
+  'de',
+  'des',
+  'du',
+  'en',
+  'et',
+  'la',
+  'le',
+  'les',
+  'mon',
+  'ma',
+  'mes',
+  'un',
+  'une',
+  'the',
+  'an',
+  'and',
+  'for',
+  'from',
+  'how',
+  'is',
+  'my',
+  'no',
+  'not',
+  'pas',
+  'pour',
+  'qui',
+  'que',
+  'dans',
+  'comment',
+  'of',
+  'on',
+  'or',
+  'to',
+  'what',
+  'when',
+  'where',
+  'with',
+]);
+
+export function searchScore(card: GuideCard, query: string): number {
+  const normalizedQuery = normalizeSearch(query).trim();
+  if (!normalizedQuery) {
+    return 1;
+  }
+
   const searchable = normalizeSearch(
     [
       card.title.fr,
@@ -550,6 +599,9 @@ export function matchesSearch(card: GuideCard, query: string): boolean {
       card.summary.fr,
       card.summary.en,
       card.keywords,
+      categories.find((category) => category.id === card.category)?.label.fr ?? '',
+      categories.find((category) => category.id === card.category)?.label.en ?? '',
+      ...card.pages.map((page) => `page ${page} p ${page}`),
       ...card.steps.flatMap((step) => [step.fr, step.en]),
       card.warning?.fr ?? '',
       card.warning?.en ?? '',
@@ -558,8 +610,22 @@ export function matchesSearch(card: GuideCard, query: string): boolean {
         : []),
     ].join(' '),
   );
-  return normalizeSearch(query)
-    .trim()
+  const terms = normalizedQuery
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .split(/\s+/)
-    .every((word) => searchable.includes(word));
+    .filter((term) => term.length > 1 && !searchStopWords.has(term));
+
+  if (searchable.includes(normalizedQuery)) {
+    return 100 + terms.length;
+  }
+
+  const matches = terms.filter((term) => searchable.includes(term)).length;
+  if (matches === 0) {
+    return 0;
+  }
+  return matches === terms.length ? 10 + matches : matches;
+}
+
+export function matchesSearch(card: GuideCard, query: string): boolean {
+  return searchScore(card, query) > 0;
 }

@@ -12,17 +12,34 @@ npm install
 npm start
 ```
 
-Open http://localhost:4200. No API, account, remote fonts or third-party services
-are required.
+Open http://localhost:4200. No API, account or remote fonts are required. The
+question workflow opens ChatGPT in a new tab only when you choose to; prompts and
+answers are copied and pasted manually.
 
 ## Features
 
 - Desktop sidebar, tablet two-column cards and phone single-column cards.
 - French/English language switch, including translated reference content.
-- Accent-insensitive search across both languages, steps and the cooking table.
+- Accent-tolerant, partial-term and broad search across both languages, steps,
+  keywords, page numbers and the cooking table. Results link directly to cited
+  PDF pages; the complete 36-page guide can also be opened and searched with
+  Ctrl+F/⌘F.
 - Categories, expandable instructions and source PDF page links.
 - Favourites and language saved in this browser's local storage. Storage failures
   are reported; preferences then continue in memory for the current visit.
+- Ask ChatGPT a question by creating and copying a prompt, opening ChatGPT,
+  pasting its answer back into the app, then saving the answers you want to keep.
+  The knowledge base is stored in this browser and entries can be deleted.
+- The form explains the workflow in three steps and clarifies that an image link
+  in the response does not embed the image; attach the image file or paste the
+  image itself.
+- The knowledge base is shown as a table with a link to expand each answer's
+  details. Up to five JPEG, PNG or WebP images can be selected together or pasted
+  into the answer field. Place the cursor where an image should appear: a marker
+  such as `[Image 1]` is inserted while editing and replaced by the image in the
+  saved entry's details. Images are resized before storage. Each entry can also
+  be shared via WhatsApp or email; sharing includes the question and answer, but
+  not the images.
 - Printing includes the full details of the currently filtered cards. Reset
   filters before printing to include all cards.
 - Keyboard-accessible controls, skip link and visible focus indicators.
@@ -41,8 +58,11 @@ store procedures with your supervisor, particularly for labelling, illness
 exclusion and higher-risk processes. English translations are unofficial.
 
 The PDF is included in the build. Before publishing publicly, confirm you have
-permission to distribute the supplied document. Preferences are stored only on
-this device; clearing browser storage removes them.
+permission to distribute the supplied document. Preferences and the knowledge
+base are stored only on this device; clearing browser storage removes them.
+Questions and answers are not sent by the app. If you copy a prompt into ChatGPT,
+that content is submitted to the external service under its own terms and privacy
+settings.
 
 There is no offline service worker: an already loaded page can filter its bundled
 reference content without more requests, but reopening the app and opening PDF

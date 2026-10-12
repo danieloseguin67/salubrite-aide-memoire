@@ -12,8 +12,10 @@ npm install
 npm start
 ```
 
-Ouvrez http://localhost:4200. Aucune API, aucun compte, aucune police distante ni
-service tiers n'est requis.
+Ouvrez http://localhost:4200. Aucune API, aucun compte ni police distante n'est
+requis pour utiliser l'application. La fonction de questions ouvre ChatGPT dans un
+nouvel onglet uniquement lorsque vous le choisissez; le prompt et la réponse sont
+copiés/collés manuellement.
 
 ## Fonctionnalités
 
@@ -21,12 +23,29 @@ service tiers n'est requis.
   seule colonne sur téléphone.
 - Basculement de langue français/anglais, y compris le contenu de référence
   traduit.
-- Recherche insensible à l'accent dans les deux langues, les étapes et le
-  tableau de cuisson.
+- Recherche tolérante aux accents, mots incomplets et requêtes larges dans les
+  deux langues, les étapes, les mots-clés, les pages et le tableau de cuisson.
+  Les résultats donnent des liens directs aux pages PDF citées; le guide complet
+  de 36 pages peut aussi être ouvert et recherché avec Ctrl+F/⌘F.
 - Catégories, instructions extensibles et liens vers les pages du PDF source.
 - Favoris et langue enregistrés dans le stockage local de ce navigateur. Les
   échecs de stockage sont signalés; les préférences continuent ensuite en mémoire
   pour la visite en cours.
+- Un espace de questions permet de créer un prompt pour ChatGPT, de le copier,
+  d'ouvrir ChatGPT, puis de coller et conserver les réponses choisies. La base de
+  connaissances est enregistrée dans le stockage local du navigateur et chaque
+  entrée peut être supprimée.
+- Le formulaire guide l'utilisateur en trois étapes et précise qu'un lien d'image
+  dans le texte de réponse n'intègre pas l'image : le fichier doit être joint ou
+  l'image collée directement.
+- La base de connaissances s'affiche sous forme de tableau avec un lien pour
+  déplier les détails de chaque réponse. Jusqu'à cinq images JPEG, PNG ou WebP
+  peuvent être sélectionnées ensemble ou collées dans le champ de réponse.
+  Placez le curseur où l'image doit apparaître : un repère comme `[Image 1]` est
+  inséré pendant la rédaction et remplacé par l'image dans les détails de la fiche.
+  Les images sont redimensionnées avant leur enregistrement. Chaque entrée peut
+  aussi être partagée par WhatsApp ou courriel; le partage transmet la question
+  et la réponse, mais pas les images.
 - L'impression inclut tous les détails des cartes actuellement filtrées. Réinitialisez
   les filtres avant l'impression pour inclure toutes les cartes.
 - Contrôles accessibles au clavier, lien d'évitement et indicateurs de focus
@@ -49,9 +68,11 @@ personnes malades et les processus à risque plus élevé. Les traductions en an
 sont non officielles.
 
 Le PDF est inclus dans le build. Avant toute publication publique, confirmez que
-vous avez l'autorisation de distribuer le document fourni. Les préférences sont
-stockées uniquement sur cet appareil ; la suppression du stockage du navigateur
-les supprime.
+vous avez l'autorisation de distribuer le document fourni. Les préférences et la base de connaissances sont stockées uniquement sur cet
+appareil ; la suppression du stockage du navigateur les supprime. Les questions
+et réponses ne sont pas envoyées par l'application. Si vous copiez le prompt dans
+ChatGPT, le contenu est soumis au service externe selon ses propres conditions et
+paramètres de confidentialité.
 
 Il n'y a pas de service worker hors ligne : une page déjà chargée peut filtrer
 son contenu de référence intégré sans requêtes supplémentaires, mais la réouverture
