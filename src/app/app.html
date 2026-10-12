@@ -557,6 +557,15 @@
                     @if (expandedKnowledgeEntry() === entry.id) {
                       <tr [id]="'knowledge-details-' + entry.id" class="knowledge-detail-row">
                         <td colspan="3">
+                          <div class="knowledge-actions">
+                            <button
+                              class="table-action"
+                              type="button"
+                              (click)="closeKnowledgeDetails(entry.id)"
+                            >
+                              {{ text('closeKnowledge') }}
+                            </button>
+                          </div>
                           <div class="knowledge-detail">
                             <p class="knowledge-answer">
                               @for (part of knowledgeAnswerParts(entry); track $index) {

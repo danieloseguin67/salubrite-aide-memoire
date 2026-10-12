@@ -106,6 +106,7 @@ const copy = {
     actionColumn: 'Action',
     viewKnowledge: 'Voir',
     hideKnowledge: 'Masquer',
+    closeKnowledge: 'Fermer la réponse',
     saveAnswer: 'Ajouter à ma base de connaissances',
     knowledgeBaseTitle: 'Ma base de connaissances',
     knowledgeCount: 'réponses enregistrées',
@@ -237,6 +238,7 @@ const copy = {
     actionColumn: 'Action',
     viewKnowledge: 'View',
     hideKnowledge: 'Hide',
+    closeKnowledge: 'Close answer',
     saveAnswer: 'Add to my knowledge base',
     knowledgeBaseTitle: 'My knowledge base',
     knowledgeCount: 'saved answers',
@@ -596,6 +598,12 @@ export class App {
 
   toggleKnowledgeDetails(id: string): void {
     this.expandedKnowledgeEntry.update((expandedId) => (expandedId === id ? null : id));
+  }
+
+  closeKnowledgeDetails(id: string): void {
+    if (this.expandedKnowledgeEntry() === id) {
+      this.expandedKnowledgeEntry.set(null);
+    }
   }
 
   knowledgeShareText(entry: KnowledgeEntry): string {

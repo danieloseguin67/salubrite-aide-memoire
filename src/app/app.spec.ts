@@ -228,6 +228,16 @@ describe('Salubri reference', () => {
       'Keep raw and ready-to-eat foods separate.',
     );
     expect(element.querySelectorAll<HTMLImageElement>('.knowledge-detail img')).toHaveLength(2);
+    element.querySelector<HTMLButtonElement>('.knowledge-detail-row .knowledge-actions button')!.click();
+    first.detectChanges();
+    expect(element.querySelector('.knowledge-detail')).toBeNull();
+    const knowledgeToggle = element.querySelector<HTMLButtonElement>(
+      '.knowledge-table [aria-controls^="knowledge-details-"][aria-expanded="false"]',
+    )!;
+    expect(knowledgeToggle.textContent).toContain('Voir');
+    knowledgeToggle.click();
+    first.detectChanges();
+    expect(element.querySelector('.knowledge-detail')).not.toBeNull();
 
     first.destroy();
     const next = createApp();
