@@ -224,6 +224,120 @@ describe('Salubri reference', () => {
     expect(localStorage.getItem('salubri.preferences.v1')).toContain('"knowledgeBase":[]');
   });
 
+  it('imports and merges a knowledge-base export, including images, without replacing existing entries', async () => {
+    const fixture = createApp();
+    const app = fixture.componentInstance;
+    const existingEntry = {
+      id: 'existing',
+      question: 'Already saved?',
+      answer: 'Keep this answer.',
+    };
+    app.knowledgeBase.set([existingEntry]);
+    const importedEntry = {
+      id: 'imported',
+      question: 'How should food be cooled?',
+      answer: 'Use shallow containers. [Image 1]',
+      images: [{ dataUrl: 'data:image/webp;base64,AAAA', name: 'cooling.webp' }],
+    };
+    const json = JSON.stringify({
+      format: 'salubri-knowledge-base',
+      version: 1,
+      entries: [existingEntry, importedEntry],
+    });
+    const file = new File([json], 'salubri-knowledge-base.json', {
+      type: 'application/json',
+    });
+    Object.defineProperty(file, 'text', { value: async () => json });
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#knowledge-import',
+    )!;
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    input.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(app.knowledgeBase()).toHaveLength(2));
+    fixture.detectChanges();
+
+    expect(app.knowledgeBase().map((entry) => entry.id)).toEqual(['existing', 'imported']);
+    expect(app.knowledgeBase()[1].images?.[0].name).toBe('cooling.webp');
+    expect(
+      fixture.nativeElement.querySelector('.knowledge-section .copy-status')?.textContent,
+    ).toContain('Nouvelles fiches : 1; doublons ignorés : 1');
+    expect(JSON.parse(localStorage.getItem('salubri.preferences.v1')!).knowledgeBase).toHaveLength(
+      2,
+    );
+    fixture.destroy();
+  });
+
+  it('rejects invalid knowledge-base imports without changing saved entries', async () => {
+    const fixture = createApp();
+    const app = fixture.componentInstance;
+    app.knowledgeBase.set([{ id: 'keep', question: 'Keep?', answer: 'Keep.' }]);
+    const invalidJson = JSON.stringify({
+      format: 'salubri-knowledge-base',
+      version: 1,
+      entries: [{ id: 'invalid', question: 'Missing answer' }],
+    });
+    const file = new File([invalidJson], 'invalid.json', { type: 'application/json' });
+    Object.defineProperty(file, 'text', { value: async () => invalidJson });
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#knowledge-import',
+    )!;
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    input.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(app.knowledgeTransferStatus()?.kind).toBe('error'));
+
+    expect(app.knowledgeBase().map((entry) => entry.id)).toEqual(['keep']);
+    fixture.destroy();
+  });
+
+  it('exports the knowledge base as a downloadable JSON file', async () => {
+    const fixture = createApp();
+    const app = fixture.componentInstance;
+    app.knowledgeBase.set([
+      {
+        id: 'exported-entry',
+        question: 'How should food be cooled?',
+        answer: 'Use shallow containers.',
+        images: [{ dataUrl: 'data:image/webp;base64,AAAA', name: 'cooling.webp' }],
+      },
+    ]);
+    let exportedBlob: Blob | undefined;
+    const createObjectUrl = vi.fn((blob: Blob) => {
+      exportedBlob = blob;
+      return 'blob:salubri-export';
+    });
+    const revokeObjectUrl = vi.fn();
+    const createDescriptor = Object.getOwnPropertyDescriptor(window.URL, 'createObjectURL');
+    const revokeDescriptor = Object.getOwnPropertyDescriptor(window.URL, 'revokeObjectURL');
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectUrl,
+    });
+    Object.defineProperty(window.URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectUrl,
+    });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    app.exportKnowledgeBase();
+    await vi.waitFor(() => expect(revokeObjectUrl).toHaveBeenCalledWith('blob:salubri-export'));
+
+    expect(click).toHaveBeenCalled();
+    expect(app.knowledgeTransferStatus()?.kind).toBe('exported');
+    expect(await exportedBlob?.text()).toContain('"format": "salubri-knowledge-base"');
+    expect(await exportedBlob?.text()).toContain('"name": "cooling.webp"');
+    if (createDescriptor) {
+      Object.defineProperty(window.URL, 'createObjectURL', createDescriptor);
+    } else {
+      Reflect.deleteProperty(window.URL, 'createObjectURL');
+    }
+    if (revokeDescriptor) {
+      Object.defineProperty(window.URL, 'revokeObjectURL', revokeDescriptor);
+    } else {
+      Reflect.deleteProperty(window.URL, 'revokeObjectURL');
+    }
+    fixture.destroy();
+  });
+
   it('allows several pending images and removes them individually', () => {
     const fixture = createApp();
     const app = fixture.componentInstance;

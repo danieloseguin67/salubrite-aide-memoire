@@ -46,6 +46,9 @@ copiés/collés manuellement.
   Les images sont redimensionnées avant leur enregistrement. Chaque entrée peut
   aussi être partagée par WhatsApp ou courriel; le partage transmet la question
   et la réponse, mais pas les images.
+- La base peut être exportée ou importée au format JSON, y compris les images.
+  L'import fusionne les fiches et ignore celles dont l'identifiant existe déjà;
+  conservez le fichier exporté dans un endroit sûr pour le transférer ou le sauvegarder.
 - L'impression inclut tous les détails des cartes actuellement filtrées. Réinitialisez
   les filtres avant l'impression pour inclure toutes les cartes.
 - Contrôles accessibles au clavier, lien d'évitement et indicateurs de focus

@@ -40,6 +40,9 @@ answers are copied and pasted manually.
   saved entry's details. Images are resized before storage. Each entry can also
   be shared via WhatsApp or email; sharing includes the question and answer, but
   not the images.
+- The knowledge base can be imported or exported as JSON, including its images.
+  Import merges entries and skips records whose IDs already exist; keep exported
+  files somewhere safe for transfer or backup.
 - Printing includes the full details of the currently filtered cards. Reset
   filters before printing to include all cards.
 - Keyboard-accessible controls, skip link and visible focus indicators.

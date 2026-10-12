@@ -453,7 +453,33 @@
               <p role="status">{{ knowledgeBase().length }} {{ text('knowledgeCount') }}</p>
               <p class="share-knowledge-note">{{ text('shareKnowledgeNote') }}</p>
             </div>
+            <div class="assistant-actions knowledge-transfer-actions">
+              <button class="secondary-button" type="button" (click)="exportKnowledgeBase()">
+                {{ text('exportKnowledge') }}
+              </button>
+              <button class="secondary-button" type="button" (click)="openKnowledgeImportPicker()">
+                {{ text('importKnowledge') }}
+              </button>
+              <input
+                class="sr-only"
+                id="knowledge-import"
+                type="file"
+                accept="application/json,.json"
+                aria-hidden="true"
+                tabindex="-1"
+                (change)="importKnowledgeBase($event)"
+              />
+            </div>
           </div>
+          @if (knowledgeTransferStatus()) {
+            <p
+              class="copy-status"
+              role="status"
+              [class.copy-error]="knowledgeTransferStatus()?.kind === 'error'"
+            >
+              {{ knowledgeTransferMessage() }}
+            </p>
+          }
           @if (knowledgeBase().length) {
             <div class="knowledge-table-wrap">
               <table class="knowledge-table">

@@ -110,6 +110,14 @@ const copy = {
     knowledgeBaseTitle: 'Ma base de connaissances',
     knowledgeCount: 'réponses enregistrées',
     knowledgeEmpty: 'Les réponses que vous choisirez de conserver apparaîtront ici.',
+    exportKnowledge: 'Exporter JSON',
+    importKnowledge: 'Importer JSON',
+    importKnowledgeLabel: 'Importer une base de connaissances JSON',
+    knowledgeExportSuccess: 'Base de connaissances exportée.',
+    knowledgeImportSuccess:
+      'Import terminé. Nouvelles fiches : {added}; doublons ignorés : {skipped}.',
+    knowledgeImportError:
+      'Import impossible. Choisissez un fichier JSON Salubri valide; aucune entrée n’a été ajoutée.',
     removeKnowledgeAction: 'Supprimer',
     removeKnowledgeEntry: 'Supprimer cette entrée',
     shareKnowledgeNote: 'Le partage comprend la question et la réponse, mais pas les images.',
@@ -221,6 +229,12 @@ const copy = {
     knowledgeBaseTitle: 'My knowledge base',
     knowledgeCount: 'saved answers',
     knowledgeEmpty: 'Answers you choose to keep will appear here.',
+    exportKnowledge: 'Export JSON',
+    importKnowledge: 'Import JSON',
+    importKnowledgeLabel: 'Import a JSON knowledge base',
+    knowledgeExportSuccess: 'Knowledge base exported.',
+    knowledgeImportSuccess: 'Import complete. New entries: {added}; duplicates skipped: {skipped}.',
+    knowledgeImportError: 'Import failed. Choose a valid Salubri JSON file; no entries were added.',
     removeKnowledgeAction: 'Delete',
     removeKnowledgeEntry: 'Delete this entry',
     shareKnowledgeNote: 'Sharing includes the question and answer, but not the images.',
@@ -254,6 +268,46 @@ interface AnswerImage {
 interface KnowledgeAnswerPart {
   text: string;
   image: AnswerImage | null;
+}
+
+interface KnowledgeTransferStatus {
+  kind: 'success' | 'error' | 'exported';
+  added?: number;
+  skipped?: number;
+}
+
+function isAnswerImage(value: unknown): value is AnswerImage {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'dataUrl' in value &&
+    typeof value.dataUrl === 'string' &&
+    /^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(value.dataUrl) &&
+    value.dataUrl.length < 450_000 &&
+    'name' in value &&
+    typeof value.name === 'string'
+  );
+}
+
+function isKnowledgeEntry(value: unknown): value is KnowledgeEntry {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'string' &&
+    value.id.trim().length > 0 &&
+    'question' in value &&
+    typeof value.question === 'string' &&
+    value.question.trim().length > 0 &&
+    'answer' in value &&
+    typeof value.answer === 'string' &&
+    value.answer.trim().length > 0 &&
+    (!('images' in value) ||
+      (Array.isArray(value.images) &&
+        value.images.length <= 5 &&
+        value.images.every(isAnswerImage))) &&
+    (!('image' in value) || isAnswerImage(value.image))
+  );
 }
 
 @Component({
@@ -291,6 +345,7 @@ export class App {
   readonly imageStatus = signal<'idle' | 'added' | 'error' | 'limit'>('idle');
   readonly expandedKnowledgeEntry = signal<string | null>(null);
   readonly copyStatus = signal<'idle' | 'copied' | 'error'>('idle');
+  readonly knowledgeTransferStatus = signal<KnowledgeTransferStatus | null>(null);
   readonly knowledgeBase = signal<KnowledgeEntry[]>([]);
   readonly visibleCards = computed(() => {
     const query = this.query();
@@ -527,6 +582,114 @@ export class App {
   emailShareUrl(entry: KnowledgeEntry): string {
     const subject = `${this.text('knowledgeBaseTitle')} — ${entry.question}`;
     return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(this.knowledgeShareText(entry))}`;
+  }
+
+  exportKnowledgeBase(): void {
+    const view = this.document.defaultView;
+    if (!view) {
+      this.knowledgeTransferStatus.set({ kind: 'error' });
+      return;
+    }
+
+    let downloadUrl: string | null = null;
+    try {
+      const exportData = {
+        format: 'salubri-knowledge-base',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        entries: this.knowledgeBase(),
+      };
+      const file = new view.Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json',
+      });
+      downloadUrl = view.URL.createObjectURL(file);
+      const link = this.document.createElement('a');
+      link.href = downloadUrl;
+      link.download = 'salubri-knowledge-base.json';
+      link.click();
+      this.knowledgeTransferStatus.set({ kind: 'exported' });
+    } catch (error) {
+      console.error('Unable to export the knowledge base:', error);
+      this.knowledgeTransferStatus.set({ kind: 'error' });
+    } finally {
+      if (downloadUrl) {
+        const url = downloadUrl;
+        view.setTimeout(() => view.URL.revokeObjectURL(url), 0);
+      }
+    }
+  }
+
+  async importKnowledgeBase(event: Event): Promise<void> {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        !('format' in parsed) ||
+        parsed.format !== 'salubri-knowledge-base' ||
+        !('version' in parsed) ||
+        parsed.version !== 1 ||
+        !('entries' in parsed) ||
+        !Array.isArray(parsed.entries) ||
+        !parsed.entries.every(isKnowledgeEntry)
+      ) {
+        throw new Error('Invalid knowledge base export');
+      }
+
+      const existingIds = new Set(this.knowledgeBase().map((entry) => entry.id));
+      const importedIds = new Set<string>();
+      let skipped = 0;
+      const newEntries = parsed.entries.filter((entry) => {
+        if (existingIds.has(entry.id) || importedIds.has(entry.id)) {
+          skipped += 1;
+          return false;
+        }
+        importedIds.add(entry.id);
+        return true;
+      });
+      if (newEntries.length) {
+        this.knowledgeBase.update((entries) => [...entries, ...newEntries]);
+        this.savePreferences();
+      }
+      this.knowledgeTransferStatus.set({
+        kind: 'success',
+        added: newEntries.length,
+        skipped,
+      });
+    } catch (error) {
+      console.error('Unable to import the knowledge base:', error);
+      this.knowledgeTransferStatus.set({ kind: 'error' });
+    }
+  }
+
+  knowledgeTransferMessage(): string {
+    const status = this.knowledgeTransferStatus();
+    if (!status) {
+      return '';
+    }
+    if (status.kind === 'error') {
+      return this.text('knowledgeImportError');
+    }
+    if (status.kind === 'exported') {
+      return this.text('knowledgeExportSuccess');
+    }
+    return this.text('knowledgeImportSuccess')
+      .replace('{added}', String(status.added ?? 0))
+      .replace('{skipped}', String(status.skipped ?? 0));
+  }
+
+  openKnowledgeImportPicker(): void {
+    this.document.getElementById('knowledge-import')?.click();
   }
 
   removeKnowledgeEntry(id: string): void {
