@@ -159,6 +159,24 @@
         >
       </section>
 
+      <section class="related-topics" aria-labelledby="related-topics-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="related-topics-title">{{ text('relatedTopicsTitle') }}</h2>
+            <p>{{ text('relatedTopicsDescription') }}</p>
+          </div>
+        </div>
+        <div class="topics-grid">
+          @for (topic of relatedCategories; track topic.id) {
+            <button class="topic-card" type="button" (click)="selectCategory(topic.id)">
+              <span class="topic-symbol" aria-hidden="true">{{ topic.symbol }}</span>
+              <strong>{{ topic.label[language()] }}</strong>
+              <span>{{ relatedTopicSummary(topic.id) }}</span>
+            </button>
+          }
+        </div>
+      </section>
+
       <section class="cards-section" aria-labelledby="cards-title">
         <div class="section-heading">
           <div>

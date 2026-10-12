@@ -13,7 +13,7 @@ export interface GuideCard {
   keywords: string;
 }
 
-const t = (fr: string, en: string): Translation => ({ fr, en });
+export const t = (fr: string, en: string): Translation => ({ fr, en });
 
 export const categories: { id: Category; label: Translation; symbol: string }[] = [
   { id: 'all', label: t('Toutes les fiches', 'All reference cards'), symbol: '▦' },

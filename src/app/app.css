@@ -379,6 +379,55 @@ h1 {
   color: #74846d;
   padding: 6px;
 }
+.related-topics {
+  margin: 0 0 36px;
+}
+.topics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+.topic-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 160px;
+  padding: 18px 16px 17px;
+  border: 1px solid #e1e7dc;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8f2 100%);
+  color: #2b4738;
+  text-align: left;
+  box-shadow: 0 2px 6px rgba(31, 49, 35, 0.03);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.topic-card:hover {
+  transform: translateY(-1px);
+  border-color: #c4d6be;
+  box-shadow: 0 6px 15px rgba(31, 49, 35, 0.08);
+}
+.topic-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #eaf2e7;
+  color: #335d41;
+  font-size: 24px;
+}
+.topic-card strong {
+  font-size: 15px;
+  letter-spacing: -0.2px;
+  line-height: 1.4;
+}
+.topic-card span:last-child {
+  font-size: 11px;
+  line-height: 1.7;
+  color: #637365;
+}
 .section-heading {
   display: flex;
   justify-content: space-between;
@@ -670,6 +719,9 @@ tbody th {
   .card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .topics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .essentials {
     flex-wrap: wrap;
     gap: 20px 0;
@@ -805,6 +857,9 @@ tbody th {
   .card-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 13px;
+  }
+  .topics-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .reference-card {
     padding: 18px;

@@ -1,6 +1,15 @@
 import { DOCUMENT } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { categories, Category, cookingRows, guideCards, Language, matchesSearch } from './guide';
+import {
+  categories,
+  Category,
+  cookingRows,
+  guideCards,
+  Language,
+  matchesSearch,
+  t,
+  Translation,
+} from './guide';
 
 const copy = {
   fr: {
@@ -53,6 +62,8 @@ const copy = {
     noResults: 'Aucune fiche trouvée',
     searchHint: 'Essayez un autre mot, en français ou en anglais, ou réinitialisez les filtres.',
     showAll: 'Voir toutes les fiches',
+    relatedTopicsTitle: 'Sujets liés au magasin',
+    relatedTopicsDescription: 'Les points-clés à surveiller dans un rayon ou un poste de travail.',
     referenceNotProcedure: 'Un aide-mémoire, pas un remplacement de votre formation.',
     disclaimer:
       'Résumés et traductions non officiels du guide fourni, édition 2018. Vérifiez les pages sources, les règles en vigueur et les procédures de votre magasin. En cas de doute, demandez au responsable.',
@@ -108,6 +119,8 @@ const copy = {
     noResults: 'No matching cards',
     searchHint: 'Try another word, in French or English, or reset your filters.',
     showAll: 'Show all cards',
+    relatedTopicsTitle: 'Related grocery topics',
+    relatedTopicsDescription: 'Key points to monitor in any aisle, prep area or service counter.',
     referenceNotProcedure: 'A quick reference, not a replacement for training.',
     disclaimer:
       'Unofficial summaries and translations of the supplied guide, 2018 edition. Check the source pages, current rules and your store’s procedures. When unsure, ask your supervisor.',
@@ -124,6 +137,14 @@ export class App {
   private readonly document = inject(DOCUMENT);
   private readonly storageKey = 'salubri.preferences.v1';
   readonly categories = categories;
+  readonly relatedCategories: Array<{
+    id: Exclude<Category, 'all'>;
+    label: Translation;
+    symbol: string;
+  }> = categories.filter(
+    (category): category is { id: Exclude<Category, 'all'>; label: Translation; symbol: string } =>
+      category.id !== 'all',
+  );
   readonly cookingRows = cookingRows;
   readonly language = signal<Language>('fr');
   readonly query = signal('');
@@ -172,6 +193,18 @@ export class App {
 
   categoryLabel(id: Category): string {
     return categories.find((category) => category.id === id)!.label[this.language()];
+  }
+
+  relatedTopicSummary(id: Exclude<Category, 'all'>): string {
+    const summaries: Record<Exclude<Category, 'all'>, Translation> = {
+      temperature: t('Thermomètres, zones de danger et conservation', 'Thermometers, danger zones and holding'),
+      receiving: t('Réception, stockage et vigilance sur les livraisons', 'Receiving, storage and delivery checks'),
+      preparation: t('Préparation, cuisson et manipulation sûre', 'Preparation, cooking and safe handling'),
+      hygiene: t('Hygiène personnelle et prévention des contaminants', 'Personal hygiene and contamination prevention'),
+      cleaning: t('Nettoyage, désinfection et entretien des locaux', 'Cleaning, sanitation and facility upkeep'),
+    };
+
+    return summaries[id][this.language()];
   }
 
   categoryCount(id: Category): number {
