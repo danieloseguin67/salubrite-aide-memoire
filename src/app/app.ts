@@ -120,7 +120,17 @@ const copy = {
       'Import impossible. Choisissez un fichier JSON Salubri valide; aucune entrée n’a été ajoutée.',
     removeKnowledgeAction: 'Supprimer',
     removeKnowledgeEntry: 'Supprimer cette entrée',
-    shareKnowledgeNote: 'Le partage comprend la question et la réponse, mais pas les images.',
+    shareKnowledgeNote:
+      'WhatsApp essaie de partager le texte et les images. Si votre navigateur ne peut pas joindre les images, elles sont téléchargées pour que vous les ajoutiez au message.',
+    shareRecord: 'Partager avec images',
+    shareRecordLabel: 'Partager la question, la réponse et les images',
+    shareImagesFallback:
+      'Votre navigateur ne peut pas joindre les images au partage. Les images ont été téléchargées : ajoutez-les manuellement à votre message.',
+    whatsappImagesFallback:
+      'Les images ont été téléchargées. WhatsApp s’ouvre avec le texte; ajoutez les fichiers image au message avant de l’envoyer.',
+    shareRecordError: 'La fiche n’a pas pu être partagée. Réessayez ou téléchargez les images.',
+    shareRecordCancelled: 'Partage annulé.',
+    sharedImageLabel: 'Image à joindre',
     shareWhatsapp: 'WhatsApp',
     shareEmail: 'Courriel',
     shareWhatsappLabel: 'Partager cette réponse avec WhatsApp',
@@ -237,7 +247,17 @@ const copy = {
     knowledgeImportError: 'Import failed. Choose a valid Salubri JSON file; no entries were added.',
     removeKnowledgeAction: 'Delete',
     removeKnowledgeEntry: 'Delete this entry',
-    shareKnowledgeNote: 'Sharing includes the question and answer, but not the images.',
+    shareKnowledgeNote:
+      'WhatsApp tries to share the text and images. If your browser cannot attach the images, they are downloaded so you can add them to the message.',
+    shareRecord: 'Share with images',
+    shareRecordLabel: 'Share the question, answer and images',
+    shareImagesFallback:
+      'Your browser cannot attach images to sharing. The images were downloaded; attach them manually to your message.',
+    whatsappImagesFallback:
+      'The images were downloaded. WhatsApp is opening with the text; attach the image files to the message before sending.',
+    shareRecordError: 'The entry could not be shared. Try again or download the images.',
+    shareRecordCancelled: 'Sharing cancelled.',
+    sharedImageLabel: 'Image to attach',
     shareWhatsapp: 'WhatsApp',
     shareEmail: 'Email',
     shareWhatsappLabel: 'Share this answer with WhatsApp',
@@ -275,6 +295,8 @@ interface KnowledgeTransferStatus {
   added?: number;
   skipped?: number;
 }
+
+type KnowledgeShareStatus = 'fallback' | 'error' | 'cancelled';
 
 function isAnswerImage(value: unknown): value is AnswerImage {
   return (
@@ -346,6 +368,7 @@ export class App {
   readonly expandedKnowledgeEntry = signal<string | null>(null);
   readonly copyStatus = signal<'idle' | 'copied' | 'error'>('idle');
   readonly knowledgeTransferStatus = signal<KnowledgeTransferStatus | null>(null);
+  readonly knowledgeShareStatus = signal<KnowledgeShareStatus | null>(null);
   readonly knowledgeBase = signal<KnowledgeEntry[]>([]);
   readonly visibleCards = computed(() => {
     const query = this.query();
@@ -572,7 +595,12 @@ export class App {
   }
 
   knowledgeShareText(entry: KnowledgeEntry): string {
-    return `${this.text('shareQuestion')}: ${entry.question}\n\n${this.text('shareAnswer')}: ${entry.answer}`;
+    const images = this.getKnowledgeImages(entry);
+    const answer = entry.answer.replace(/\[Image ([1-5])\]/g, (marker, number: string) => {
+      const image = images[Number(number) - 1];
+      return image ? `(${this.text('sharedImageLabel')}: ${image.name})` : marker;
+    });
+    return `${this.text('shareQuestion')}: ${entry.question}\n\n${this.text('shareAnswer')}: ${answer}`;
   }
 
   whatsappShareUrl(entry: KnowledgeEntry): string {
@@ -582,6 +610,144 @@ export class App {
   emailShareUrl(entry: KnowledgeEntry): string {
     const subject = `${this.text('knowledgeBaseTitle')} — ${entry.question}`;
     return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(this.knowledgeShareText(entry))}`;
+  }
+
+  async shareKnowledgeEntry(entry: KnowledgeEntry): Promise<void> {
+    const view = this.document.defaultView;
+    if (!view) {
+      this.knowledgeShareStatus.set('error');
+      return;
+    }
+
+    try {
+      const images = this.getKnowledgeImages(entry);
+      const files = images.map((image, index) => this.createShareFile(image, index, view));
+      const navigator = view.navigator;
+      const shareData: ShareData = {
+        title: entry.question,
+        text: this.knowledgeShareText(entry),
+        ...(files.length ? { files } : {}),
+      };
+
+      if (
+        typeof navigator.share === 'function' &&
+        (!files.length ||
+          (typeof navigator.canShare === 'function' && navigator.canShare({ files })))
+      ) {
+        try {
+          await navigator.share(shareData);
+          this.knowledgeShareStatus.set(null);
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            this.knowledgeShareStatus.set('cancelled');
+            return;
+          }
+          console.error('Unable to share the knowledge entry:', error);
+        }
+      }
+
+      if (files.length) {
+        this.downloadShareFiles(files, view);
+        this.knowledgeShareStatus.set('fallback');
+      } else {
+        this.knowledgeShareStatus.set('error');
+      }
+    } catch (error) {
+      console.error('Unable to prepare the knowledge entry for sharing:', error);
+      this.knowledgeShareStatus.set('error');
+    }
+  }
+
+  async shareKnowledgeViaWhatsapp(entry: KnowledgeEntry): Promise<void> {
+    const view = this.document.defaultView;
+    if (!view) {
+      this.knowledgeShareStatus.set('error');
+      return;
+    }
+
+    try {
+      const images = this.getKnowledgeImages(entry);
+      const files = images.map((image, index) => this.createShareFile(image, index, view));
+      const navigator = view.navigator;
+      if (
+        files.length &&
+        typeof navigator.share === 'function' &&
+        typeof navigator.canShare === 'function' &&
+        navigator.canShare({ files })
+      ) {
+        try {
+          await navigator.share({
+            title: entry.question,
+            text: this.knowledgeShareText(entry),
+            files,
+          });
+          this.knowledgeShareStatus.set(null);
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            this.knowledgeShareStatus.set('cancelled');
+            return;
+          }
+          console.error('Unable to share the knowledge entry with WhatsApp:', error);
+        }
+      }
+
+      if (files.length) {
+        this.downloadShareFiles(files, view);
+      }
+      const link = this.document.createElement('a');
+      link.href = this.whatsappShareUrl(entry);
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.click();
+      this.knowledgeShareStatus.set(files.length ? 'fallback' : null);
+    } catch (error) {
+      console.error('Unable to prepare the knowledge entry for WhatsApp:', error);
+      this.knowledgeShareStatus.set('error');
+    }
+  }
+
+  knowledgeShareStatusMessage(): string {
+    if (this.knowledgeShareStatus() === 'fallback') {
+      return this.text('whatsappImagesFallback');
+    }
+    switch (this.knowledgeShareStatus()) {
+      case 'fallback':
+        return this.text('shareImagesFallback');
+      case 'error':
+        return this.text('shareRecordError');
+      case 'cancelled':
+        return this.text('shareRecordCancelled');
+      default:
+        return '';
+    }
+  }
+
+  private createShareFile(
+    image: AnswerImage,
+    index: number,
+    view: Window & typeof globalThis,
+  ): File {
+    const encodedData = image.dataUrl.split(',')[1];
+    if (!encodedData) {
+      throw new Error('The saved image data is invalid');
+    }
+    const decoded = view.atob(encodedData);
+    const bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+    const safeName = image.name.replace(/[\\/]/g, '_').trim() || `image-${index + 1}.webp`;
+    return new view.File([bytes], safeName, { type: 'image/webp' });
+  }
+
+  private downloadShareFiles(files: File[], view: Window & typeof globalThis): void {
+    for (const file of files) {
+      const url = view.URL.createObjectURL(file);
+      const link = this.document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      link.click();
+      view.setTimeout(() => view.URL.revokeObjectURL(url), 1000);
+    }
   }
 
   exportKnowledgeBase(): void {

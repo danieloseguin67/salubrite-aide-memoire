@@ -527,15 +527,14 @@
                           >
                             {{ text('removeKnowledgeAction') }}
                           </button>
-                          <a
+                          <button
                             class="table-action share-action"
-                            [href]="whatsappShareUrl(entry)"
+                            type="button"
                             [attr.aria-label]="text('shareWhatsappLabel')"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            (click)="shareKnowledgeViaWhatsapp(entry)"
                           >
                             {{ text('shareWhatsapp') }}
-                          </a>
+                          </button>
                           <a
                             class="table-action share-action"
                             [href]="emailShareUrl(entry)"
@@ -543,6 +542,14 @@
                           >
                             {{ text('shareEmail') }}
                           </a>
+                          <button
+                            class="table-action share-action"
+                            type="button"
+                            [attr.aria-label]="text('shareRecordLabel')"
+                            (click)="shareKnowledgeEntry(entry)"
+                          >
+                            {{ text('shareRecord') }}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -587,6 +594,15 @@
             </div>
           } @else {
             <p class="knowledge-empty">{{ text('knowledgeEmpty') }}</p>
+          }
+          @if (knowledgeShareStatus()) {
+            <p
+              class="copy-status"
+              role="status"
+              [class.copy-error]="knowledgeShareStatus() === 'error'"
+            >
+              {{ knowledgeShareStatusMessage() }}
+            </p>
           }
         </div>
       </section>

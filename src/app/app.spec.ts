@@ -4,13 +4,28 @@ import { App } from './app';
 import { cookingRows, guideCards, matchesSearch, searchScore } from './guide';
 
 describe('Salubri reference', () => {
+  let shareDescriptor: PropertyDescriptor | undefined;
+  let canShareDescriptor: PropertyDescriptor | undefined;
+
   beforeEach(async () => {
     localStorage.clear();
+    shareDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'share');
+    canShareDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'canShare');
     await TestBed.configureTestingModule({ imports: [App] }).compileComponents();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    if (shareDescriptor) {
+      Object.defineProperty(window.navigator, 'share', shareDescriptor);
+    } else {
+      Reflect.deleteProperty(window.navigator, 'share');
+    }
+    if (canShareDescriptor) {
+      Object.defineProperty(window.navigator, 'canShare', canShareDescriptor);
+    } else {
+      Reflect.deleteProperty(window.navigator, 'canShare');
+    }
     localStorage.clear();
   });
 
@@ -188,21 +203,27 @@ describe('Salubri reference', () => {
     expect(element.querySelectorAll('.knowledge-table tbody tr')).toHaveLength(1);
     expect(element.querySelector('.knowledge-detail')).toBeNull();
     expect(element.querySelector('.image-count')?.textContent).toContain('2');
-    const shareLinks = element.querySelectorAll<HTMLAnchorElement>('.share-action');
-    expect(shareLinks).toHaveLength(2);
-    expect(shareLinks[0].href).toContain('https://wa.me/?text=');
-    expect(decodeURIComponent(shareLinks[0].href.split('?text=')[1])).toBe(
+    const shareLinks = element.querySelectorAll<HTMLAnchorElement>(
+      'a.share-action[href^="mailto:"]',
+    );
+    expect(shareLinks).toHaveLength(1);
+    const whatsappButton = element.querySelector<HTMLButtonElement>(
+      'button.share-action[aria-label="Partager cette réponse avec WhatsApp"]',
+    )!;
+    expect(whatsappButton).not.toBeNull();
+    expect(
+      element.querySelector<HTMLAnchorElement>('a.share-action[href^="mailto:"]'),
+    ).not.toBeNull();
+    expect(shareLinks[0].href.startsWith('mailto:?')).toBe(true);
+    expect(new URLSearchParams(shareLinks[0].href.split('?')[1]).get('body')).toBe(
       'Question: How do I prevent cross-contamination?\n\nRéponse: Keep raw and ready-to-eat foods separate.',
     );
-    expect(shareLinks[1].href.startsWith('mailto:?')).toBe(true);
-    expect(new URLSearchParams(shareLinks[1].href.split('?')[1]).get('body')).toBe(
-      'Question: How do I prevent cross-contamination?\n\nRéponse: Keep raw and ready-to-eat foods separate.',
-    );
-    expect(element.querySelector('.share-knowledge-note')?.textContent).toContain(
-      'mais pas les images',
-    );
+    expect(element.querySelector('.share-knowledge-note')?.textContent).toContain('WhatsApp');
     expect(element.querySelector('.knowledge-actions')?.textContent).toContain('Voir');
     expect(element.querySelector('.knowledge-actions')?.textContent).toContain('Supprimer');
+    expect(element.querySelector('.knowledge-actions')?.textContent).toContain(
+      'Partager avec images',
+    );
     expect(
       element.querySelector<HTMLButtonElement>('.delete-action')?.getAttribute('aria-label'),
     ).toBe('Supprimer cette entrée');
@@ -264,6 +285,134 @@ describe('Salubri reference', () => {
     expect(JSON.parse(localStorage.getItem('salubri.preferences.v1')!).knowledgeBase).toHaveLength(
       2,
     );
+    fixture.destroy();
+  });
+
+  it('shares the knowledge entry text and image files with the device share sheet', async () => {
+    const fixture = createApp();
+    const app = fixture.componentInstance;
+    app.knowledgeBase.set([
+      {
+        id: 'share-entry',
+        question: 'How do I cool food safely?',
+        answer: 'Use shallow containers.',
+        images: [
+          { dataUrl: 'data:image/webp;base64,AAAA', name: 'cooling.webp' },
+          { dataUrl: 'data:image/webp;base64,BBBB', name: 'storage.webp' },
+        ],
+      },
+    ]);
+    const share = vi.fn(async (_data: ShareData) => undefined);
+    Object.defineProperty(window.navigator, 'share', { configurable: true, value: share });
+    Object.defineProperty(window.navigator, 'canShare', {
+      configurable: true,
+      value: vi.fn(() => true),
+    });
+
+    await app.shareKnowledgeEntry(app.knowledgeBase()[0]);
+
+    expect(share).toHaveBeenCalledOnce();
+    const shareData = share.mock.calls[0][0];
+    expect(shareData.text).toContain('How do I cool food safely?');
+    expect(shareData.files?.map((file) => file.name)).toEqual(['cooling.webp', 'storage.webp']);
+    expect(app.knowledgeShareStatus()).toBeNull();
+    fixture.destroy();
+  });
+
+  it('downloads attached images when the device share sheet cannot share files', async () => {
+    const fixture = createApp();
+    const app = fixture.componentInstance;
+    app.knowledgeBase.set([
+      {
+        id: 'fallback-entry',
+        question: 'How do I cool food safely?',
+        answer: 'Use shallow containers.',
+        images: [{ dataUrl: 'data:image/webp;base64,AAAA', name: 'cooling.webp' }],
+      },
+    ]);
+    const share = vi.fn(async (_data: ShareData) => undefined);
+    Object.defineProperty(window.navigator, 'share', { configurable: true, value: share });
+    Object.defineProperty(window.navigator, 'canShare', {
+      configurable: true,
+      value: vi.fn(() => false),
+    });
+    const createObjectUrl = vi.fn(() => 'blob:share-image');
+    const createDescriptor = Object.getOwnPropertyDescriptor(window.URL, 'createObjectURL');
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectUrl,
+    });
+    const downloads: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      downloads.push(this.download);
+    });
+
+    await app.shareKnowledgeEntry(app.knowledgeBase()[0]);
+
+    expect(share).not.toHaveBeenCalled();
+    expect(createObjectUrl).toHaveBeenCalledOnce();
+    expect(downloads).toEqual(['cooling.webp']);
+    expect(app.knowledgeShareStatus()).toBe('fallback');
+    expect(app.knowledgeShareStatusMessage()).toContain('Les images ont été téléchargées');
+    if (createDescriptor) {
+      Object.defineProperty(window.URL, 'createObjectURL', createDescriptor);
+    } else {
+      Reflect.deleteProperty(window.URL, 'createObjectURL');
+    }
+    fixture.destroy();
+  });
+
+  it('downloads images and opens a WhatsApp draft when file sharing is unsupported', async () => {
+    const fixture = createApp();
+    const app = fixture.componentInstance;
+    app.knowledgeBase.set([
+      {
+        id: 'whatsapp-entry',
+        question: 'How do I cool food safely?',
+        answer: 'Use shallow containers. [Image 1]',
+        images: [{ dataUrl: 'data:image/webp;base64,AAAA', name: 'cooling.webp' }],
+      },
+    ]);
+    Object.defineProperty(window.navigator, 'share', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window.navigator, 'canShare', {
+      configurable: true,
+      value: vi.fn(() => false),
+    });
+    const createDescriptor = Object.getOwnPropertyDescriptor(window.URL, 'createObjectURL');
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:whatsapp-image'),
+    });
+    const openedLinks: Array<{ download: string; href: string }> = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      openedLinks.push({ download: this.download, href: this.href });
+    });
+
+    await app.shareKnowledgeViaWhatsapp(app.knowledgeBase()[0]);
+
+    expect(openedLinks).toHaveLength(2);
+    expect(openedLinks[0].download).toBe('cooling.webp');
+    expect(openedLinks[1].href).toContain('https://wa.me/?text=');
+    expect(decodeURIComponent(openedLinks[1].href.split('?text=')[1])).toContain(
+      'How do I cool food safely?',
+    );
+    expect(decodeURIComponent(openedLinks[1].href.split('?text=')[1])).toContain(
+      'Image à joindre: cooling.webp',
+    );
+    expect(app.knowledgeShareStatus()).toBe('fallback');
+    expect(app.knowledgeShareStatusMessage()).toContain('ajoutez les fichiers image au message');
+    if (createDescriptor) {
+      Object.defineProperty(window.URL, 'createObjectURL', createDescriptor);
+    } else {
+      Reflect.deleteProperty(window.URL, 'createObjectURL');
+    }
     fixture.destroy();
   });
 

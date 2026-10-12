@@ -44,8 +44,10 @@ copiés/collés manuellement.
   Placez le curseur où l'image doit apparaître : un repère comme `[Image 1]` est
   inséré pendant la rédaction et remplacé par l'image dans les détails de la fiche.
   Les images sont redimensionnées avant leur enregistrement. Chaque entrée peut
-  aussi être partagée par WhatsApp ou courriel; le partage transmet la question
-  et la réponse, mais pas les images.
+  le bouton WhatsApp utilise le partage de fichiers de l'appareil lorsque
+  possible. Sinon, il télécharge les images et ouvre le brouillon WhatsApp avec
+  le texte; vous devez joindre les fichiers téléchargés manuellement avant
+  l'envoi. Le courriel partage le texte seulement.
 - La base peut être exportée ou importée au format JSON, y compris les images.
   L'import fusionne les fiches et ignore celles dont l'identifiant existe déjà;
   conservez le fichier exporté dans un endroit sûr pour le transférer ou le sauvegarder.
