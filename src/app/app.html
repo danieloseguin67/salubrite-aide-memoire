@@ -535,13 +535,14 @@
                           >
                             {{ text('shareWhatsapp') }}
                           </button>
-                          <a
+                          <button
                             class="table-action share-action"
-                            [href]="emailShareUrl(entry)"
+                            type="button"
                             [attr.aria-label]="text('shareEmailLabel')"
+                            (click)="shareKnowledgeViaEmail(entry)"
                           >
                             {{ text('shareEmail') }}
-                          </a>
+                          </button>
                           <button
                             class="table-action share-action"
                             type="button"

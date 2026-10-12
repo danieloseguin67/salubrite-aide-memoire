@@ -38,10 +38,10 @@ answers are copied and pasted manually.
   into the answer field. Place the cursor where an image should appear: a marker
   such as `[Image 1]` is inserted while editing and replaced by the image in the
   saved entry's details. Images are resized before storage. Each entry can also
-  use the WhatsApp button to share files via the device's share sheet when
-  supported. Otherwise, it downloads the images and opens a WhatsApp draft with
-  the text; manually attach the downloaded files before sending. Email shares
-  text only.
+  use the WhatsApp and Email buttons to share files via the device's share sheet
+  when supported. Otherwise, the app downloads the images and opens the
+  corresponding message draft with the text; manually attach the downloaded
+  files before sending.
 - The knowledge base can be imported or exported as JSON, including its images.
   Import merges entries and skips records whose IDs already exist; keep exported
   files somewhere safe for transfer or backup.

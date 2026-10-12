@@ -203,21 +203,15 @@ describe('Salubri reference', () => {
     expect(element.querySelectorAll('.knowledge-table tbody tr')).toHaveLength(1);
     expect(element.querySelector('.knowledge-detail')).toBeNull();
     expect(element.querySelector('.image-count')?.textContent).toContain('2');
-    const shareLinks = element.querySelectorAll<HTMLAnchorElement>(
-      'a.share-action[href^="mailto:"]',
-    );
-    expect(shareLinks).toHaveLength(1);
     const whatsappButton = element.querySelector<HTMLButtonElement>(
       'button.share-action[aria-label="Partager cette réponse avec WhatsApp"]',
     )!;
     expect(whatsappButton).not.toBeNull();
     expect(
-      element.querySelector<HTMLAnchorElement>('a.share-action[href^="mailto:"]'),
+      element.querySelector<HTMLButtonElement>(
+        'button.share-action[aria-label="Partager cette réponse par courriel"]',
+      ),
     ).not.toBeNull();
-    expect(shareLinks[0].href.startsWith('mailto:?')).toBe(true);
-    expect(new URLSearchParams(shareLinks[0].href.split('?')[1]).get('body')).toBe(
-      'Question: How do I prevent cross-contamination?\n\nRéponse: Keep raw and ready-to-eat foods separate.',
-    );
     expect(element.querySelector('.share-knowledge-note')?.textContent).toContain('WhatsApp');
     expect(element.querySelector('.knowledge-actions')?.textContent).toContain('Voir');
     expect(element.querySelector('.knowledge-actions')?.textContent).toContain('Supprimer');
@@ -408,6 +402,51 @@ describe('Salubri reference', () => {
     );
     expect(app.knowledgeShareStatus()).toBe('fallback');
     expect(app.knowledgeShareStatusMessage()).toContain('ajoutez les fichiers image au message');
+    if (createDescriptor) {
+      Object.defineProperty(window.URL, 'createObjectURL', createDescriptor);
+    } else {
+      Reflect.deleteProperty(window.URL, 'createObjectURL');
+    }
+    fixture.destroy();
+  });
+
+  it('downloads images and opens an email draft when file sharing is unsupported', async () => {
+    const fixture = createApp();
+    const app = fixture.componentInstance;
+    const entry = {
+      id: 'email-entry',
+      question: 'How do I cool food safely?',
+      answer: 'Use shallow containers. [Image 1]',
+      images: [{ dataUrl: 'data:image/webp;base64,AAAA', name: 'cooling.webp' }],
+    };
+    app.knowledgeBase.set([entry]);
+    Object.defineProperty(window.navigator, 'share', { configurable: true, value: vi.fn() });
+    Object.defineProperty(window.navigator, 'canShare', {
+      configurable: true,
+      value: vi.fn(() => false),
+    });
+    const createDescriptor = Object.getOwnPropertyDescriptor(window.URL, 'createObjectURL');
+    Object.defineProperty(window.URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:email-image'),
+    });
+    const openedLinks: Array<{ download: string; href: string }> = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      openedLinks.push({ download: this.download, href: this.href });
+    });
+
+    await app.shareKnowledgeViaEmail(entry);
+
+    expect(openedLinks).toHaveLength(2);
+    expect(openedLinks[0].download).toBe('cooling.webp');
+    expect(openedLinks[1].href.startsWith('mailto:?')).toBe(true);
+    const emailBody = new URLSearchParams(openedLinks[1].href.split('?')[1]).get('body');
+    expect(emailBody).toContain('How do I cool food safely?');
+    expect(emailBody).toContain('Image à joindre: cooling.webp');
+    expect(app.knowledgeShareStatus()).toBe('email-fallback');
+    expect(app.knowledgeShareStatusMessage()).toContain('joignez les fichiers téléchargés');
     if (createDescriptor) {
       Object.defineProperty(window.URL, 'createObjectURL', createDescriptor);
     } else {

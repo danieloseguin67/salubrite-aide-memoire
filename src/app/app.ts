@@ -121,13 +121,15 @@ const copy = {
     removeKnowledgeAction: 'Supprimer',
     removeKnowledgeEntry: 'Supprimer cette entrée',
     shareKnowledgeNote:
-      'WhatsApp essaie de partager le texte et les images. Si votre navigateur ne peut pas joindre les images, elles sont téléchargées pour que vous les ajoutiez au message.',
+      'WhatsApp et Courriel essaient de partager le texte et les images. Si votre navigateur ne peut pas joindre les images, elles sont téléchargées pour que vous les ajoutiez au message.',
     shareRecord: 'Partager avec images',
     shareRecordLabel: 'Partager la question, la réponse et les images',
     shareImagesFallback:
       'Votre navigateur ne peut pas joindre les images au partage. Les images ont été téléchargées : ajoutez-les manuellement à votre message.',
     whatsappImagesFallback:
       'Les images ont été téléchargées. WhatsApp s’ouvre avec le texte; ajoutez les fichiers image au message avant de l’envoyer.',
+    emailImagesFallback:
+      'Les images ont été téléchargées. Le brouillon de courriel contient le texte; joignez les fichiers téléchargés avant l’envoi.',
     shareRecordError: 'La fiche n’a pas pu être partagée. Réessayez ou téléchargez les images.',
     shareRecordCancelled: 'Partage annulé.',
     sharedImageLabel: 'Image à joindre',
@@ -248,13 +250,15 @@ const copy = {
     removeKnowledgeAction: 'Delete',
     removeKnowledgeEntry: 'Delete this entry',
     shareKnowledgeNote:
-      'WhatsApp tries to share the text and images. If your browser cannot attach the images, they are downloaded so you can add them to the message.',
+      'WhatsApp and Email try to share the text and images. If your browser cannot attach the images, they are downloaded so you can add them to the message.',
     shareRecord: 'Share with images',
     shareRecordLabel: 'Share the question, answer and images',
     shareImagesFallback:
       'Your browser cannot attach images to sharing. The images were downloaded; attach them manually to your message.',
     whatsappImagesFallback:
       'The images were downloaded. WhatsApp is opening with the text; attach the image files to the message before sending.',
+    emailImagesFallback:
+      'The images were downloaded. The email draft contains the text; attach the downloaded files before sending.',
     shareRecordError: 'The entry could not be shared. Try again or download the images.',
     shareRecordCancelled: 'Sharing cancelled.',
     sharedImageLabel: 'Image to attach',
@@ -296,7 +300,7 @@ interface KnowledgeTransferStatus {
   skipped?: number;
 }
 
-type KnowledgeShareStatus = 'fallback' | 'error' | 'cancelled';
+type KnowledgeShareStatus = 'fallback' | 'email-fallback' | 'error' | 'cancelled';
 
 function isAnswerImage(value: unknown): value is AnswerImage {
   return (
@@ -612,6 +616,53 @@ export class App {
     return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(this.knowledgeShareText(entry))}`;
   }
 
+  async shareKnowledgeViaEmail(entry: KnowledgeEntry): Promise<void> {
+    const view = this.document.defaultView;
+    if (!view) {
+      this.knowledgeShareStatus.set('error');
+      return;
+    }
+
+    try {
+      const images = this.getKnowledgeImages(entry);
+      const files = images.map((image, index) => this.createShareFile(image, index, view));
+      const navigator = view.navigator;
+      if (
+        files.length &&
+        typeof navigator.share === 'function' &&
+        typeof navigator.canShare === 'function' &&
+        navigator.canShare({ files })
+      ) {
+        try {
+          await navigator.share({
+            title: `${this.text('knowledgeBaseTitle')} — ${entry.question}`,
+            text: this.knowledgeShareText(entry),
+            files,
+          });
+          this.knowledgeShareStatus.set(null);
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            this.knowledgeShareStatus.set('cancelled');
+            return;
+          }
+          console.error('Unable to share the knowledge entry by email:', error);
+        }
+      }
+
+      if (files.length) {
+        this.downloadShareFiles(files, view);
+      }
+      const link = this.document.createElement('a');
+      link.href = this.emailShareUrl(entry);
+      link.click();
+      this.knowledgeShareStatus.set(files.length ? 'email-fallback' : null);
+    } catch (error) {
+      console.error('Unable to prepare the knowledge entry for email:', error);
+      this.knowledgeShareStatus.set('error');
+    }
+  }
+
   async shareKnowledgeEntry(entry: KnowledgeEntry): Promise<void> {
     const view = this.document.defaultView;
     if (!view) {
@@ -713,6 +764,8 @@ export class App {
       return this.text('whatsappImagesFallback');
     }
     switch (this.knowledgeShareStatus()) {
+      case 'email-fallback':
+        return this.text('emailImagesFallback');
       case 'fallback':
         return this.text('shareImagesFallback');
       case 'error':
